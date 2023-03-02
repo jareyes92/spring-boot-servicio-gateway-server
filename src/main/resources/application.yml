@@ -1,0 +1,50 @@
+resilience4j:
+    circuitbreaker:
+        configs:
+            defecto: #nombre de la configuracion
+                sliding-window-size: 6 #cantidad de request q se toman en cuenta para analizar el corto circuito (100 por defecto)
+                failure-rate-threshold: 50 #tasa de falla para q se ejecute el corto circuito (50% por defecto)
+                wait-duration-in-open-state: 20s #duracion del estado abierto del corto circuito (60s por defecto)
+                permitted-number-of-calls-in-half-open-state: 4 #numero de llamadas permitidas en el estado semiabierto (10 por defecto)
+                slow-call-rate-threshold: 50 #umbral en % de las llamadas lentas permitidas (100% por defecto)
+                slow-call-duration-threshold: 2s #duracion de lo q se considera una llamada lenta
+        instances:
+            productos: #nnombre de corto circuito q se usa
+                base-config: defecto
+    timelimiter:
+        configs:
+          defecto:
+            timeout-duration: 2s
+        instances:
+          productos:
+            base-config: defecto
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: servicio-productos
+          uri: lb://servicio-productos
+          predicates:
+            - Path=/api/productos/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: productos #se le pone el mismo nombre de la instancia de arriba
+                statusCodes: 500
+                fallbackUri: forward:/api/items/ver/8/cantidad/5
+            - StripPrefix=2 #esto depende de la cantidad de prefijos q tenga el Path (api, productos)
+            #- name: EjemploCookie
+             # args:
+              #  mensaje: Hola mi mensaje personalizado
+             #   cookieNombre: usuario
+              #  cookieValor: AndresGuzman
+        - id: servicio-items
+          uri: lb://servicio-items
+          predicates:
+            - Path=/api/items/**
+          filters:
+            - StripPrefix=2
+            #- AddRequestHeader=token-request,abc123
+            #- AddResponseHeader=token-response,def456
+            #- SetResponseHeader=Content-Type,text/plain
+            #- AddRequestParameter=nombre, andres
